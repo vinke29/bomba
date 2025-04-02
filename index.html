@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bomba - Hotel Cannon Game</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="game-container">
+        <h1>Bomba - Hotel Cannon Game</h1>
+        
+        <div class="game-info">
+            <div class="level-info">Level: <span id="level">1</span></div>
+            <div class="target-info">Target: <span id="target-description">Evil Businessman</span></div>
+            <div class="score-info">Score: <span id="score">0</span></div>
+            <div class="lives">Lives: <span id="lives">3</span></div>
+        </div>
+        
+        <div class="instructions">
+            <p>Aim the cannon at the <strong>RED highlighted room</strong> to eliminate the target!</p>
+            <p>Adjust angle and power carefully - it takes skill to hit your target.</p>
+        </div>
+        
+        <div class="game-board">
+            <canvas id="game-canvas" width="800" height="600"></canvas>
+        </div>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label for="angle">Angle: <span id="angle-value">45</span>°</label>
+                <input type="range" id="angle" min="0" max="90" value="45">
+            </div>
+            
+            <div class="control-group">
+                <label for="power">Power: <span id="power-value">50</span>%</label>
+                <input type="range" id="power" min="10" max="100" value="50">
+            </div>
+            
+            <button id="fire-button">FIRE!</button>
+        </div>
+        
+        <div id="message-box" class="hidden"></div>
+    </div>
+    
+    <script src="game.js"></script>
+</body>
+</html> 
