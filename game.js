@@ -17,7 +17,7 @@ let gameState = {
     particles: [],
     enemyProjectiles: [],
     targetRoom: Math.floor(Math.random() * HOTEL_ROOMS),
-    hotelDamage: new Array(HOTEL_ROOMS).fill(false) // Track which rooms are damaged
+    hotelDamage: new Array(HOTEL_ROOMS).fill(false)
 };
 
 // DOM Elements
@@ -37,8 +37,12 @@ const scoreDisplay = document.getElementById('score');
 function init() {
     console.log("Game initializing...");
     
-    // Reset game state
-    resetGameState();
+    // Set initial displays
+    levelDisplay.textContent = gameState.level;
+    scoreDisplay.textContent = gameState.score;
+    const row = Math.floor(gameState.targetRoom / 5) + 1;
+    const col = (gameState.targetRoom % 5) + 1;
+    targetDisplay.textContent = `Target: Room ${row}-${col}`;
     
     // Set up event listeners
     angleSlider.addEventListener('input', updateAngle);
@@ -73,11 +77,31 @@ function init() {
 // Reset game state
 function resetGameState() {
     console.log("Resetting game state");
-    gameState.canFire = true;
-    gameState.inProgress = false;
-    gameState.projectile = null;
-    gameState.particles = [];
-    gameState.enemyProjectiles = [];
+    const currentLevel = gameState.level;
+    const currentScore = gameState.score;
+    const currentTargetRoom = gameState.targetRoom;
+    
+    // Reset the game state while preserving progress
+    gameState = {
+        level: currentLevel,
+        score: currentScore,
+        canFire: true,
+        inProgress: false,
+        projectile: null,
+        particles: [],
+        enemyProjectiles: [],
+        targetRoom: currentTargetRoom,
+        hotelDamage: new Array(HOTEL_ROOMS).fill(false)
+    };
+    
+    // Update displays
+    levelDisplay.textContent = gameState.level;
+    scoreDisplay.textContent = gameState.score;
+    
+    // Update target room display
+    const row = Math.floor(gameState.targetRoom / 5) + 1;
+    const col = (gameState.targetRoom % 5) + 1;
+    targetDisplay.textContent = `Target: Room ${row}-${col}`;
 }
 
 // Update the angle display
@@ -330,15 +354,57 @@ function handleMiss() {
 
 // Handle a hit
 function handleHit() {
-    console.log("Target room hit!");
+    console.log("Target room hit! Moving to next level!");
+    
+    // Increment level and score
+    gameState.level += 1;
     gameState.score += 100;
+    
+    // Create victory explosion particles
+    for (let i = 0; i < 50; i++) {
+        gameState.particles.push(createParticle(
+            gameState.projectile.x,
+            gameState.projectile.y,
+            'rgba(255, 255, 0, 0.7)', // Yellow explosion for target hit
+            3 + Math.random() * 5,
+            (Math.random() - 0.5) * 8,
+            (Math.random() - 0.5) * 8,
+            50 + Math.random() * 30
+        ));
+    }
+    
+    // Update displays
+    levelDisplay.textContent = gameState.level;
     scoreDisplay.textContent = gameState.score;
     
-    // Reset hotel damage for next level
+    // Show level up message with z-index and styling
+    messageBox.style.zIndex = '1000';
+    messageBox.style.position = 'absolute';
+    messageBox.style.top = '50%';
+    messageBox.style.left = '50%';
+    messageBox.style.transform = 'translate(-50%, -50%)';
+    messageBox.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+    messageBox.style.color = '#fff';
+    messageBox.style.padding = '20px';
+    messageBox.style.borderRadius = '10px';
+    messageBox.style.fontSize = '24px';
+    messageBox.textContent = `Level ${gameState.level}! Target eliminated! Find the next target!`;
+    messageBox.style.display = 'block';
+    
+    setTimeout(() => {
+        messageBox.style.display = 'none';
+    }, 2000);
+    
+    // Reset hotel damage and select new target
     gameState.hotelDamage = new Array(HOTEL_ROOMS).fill(false);
     gameState.targetRoom = Math.floor(Math.random() * HOTEL_ROOMS);
     
-    // Reset game state
+    // Update target room display
+    const row = Math.floor(gameState.targetRoom / 5) + 1;
+    const col = (gameState.targetRoom % 5) + 1;
+    targetDisplay.textContent = `Target: Room ${row}-${col}`;
+    
+    // Reset projectile state
     gameState.inProgress = false;
     gameState.projectile = null;
     gameState.canFire = true;
@@ -365,26 +431,26 @@ function checkHotelCollision() {
         const roomIndex = row * 5 + col;
         
         if (roomIndex >= 0 && roomIndex < HOTEL_ROOMS && !gameState.hotelDamage[roomIndex]) {
-            // Mark room as damaged
-            gameState.hotelDamage[roomIndex] = true;
-            
-            // Create explosion particles
-            for (let i = 0; i < 30; i++) {
-                gameState.particles.push(createParticle(
-                    gameState.projectile.x,
-                    gameState.projectile.y,
-                    'rgba(255, 100, 100, 0.7)',
-                    3 + Math.random() * 3,
-                    (Math.random() - 0.5) * 5,
-                    (Math.random() - 0.5) * 5,
-                    30 + Math.random() * 20
-                ));
-            }
-            
-            // Check if target room was hit
+            // Check if target room was hit BEFORE marking as damaged
             if (roomIndex === gameState.targetRoom) {
                 handleHit();
             } else {
+                // Only mark as damaged if it wasn't the target room
+                gameState.hotelDamage[roomIndex] = true;
+                
+                // Create explosion particles
+                for (let i = 0; i < 30; i++) {
+                    gameState.particles.push(createParticle(
+                        gameState.projectile.x,
+                        gameState.projectile.y,
+                        'rgba(255, 100, 100, 0.7)',
+                        3 + Math.random() * 3,
+                        (Math.random() - 0.5) * 5,
+                        (Math.random() - 0.5) * 5,
+                        30 + Math.random() * 20
+                    ));
+                }
+                
                 handleMiss();
             }
             return true; // Collision occurred
@@ -417,16 +483,110 @@ function updateProjectile() {
         ));
     }
     
-    // Check for collisions
-    if (checkHotelCollision()) {
-        return; // Stop updating if collision occurred
+    // Check for collisions with hotel
+    const hotelX = canvas.width - HOTEL_WIDTH - 50;
+    const hotelY = canvas.height - HOTEL_HEIGHT - 20;
+    const roomWidth = HOTEL_WIDTH / 5;
+    const roomHeight = HOTEL_HEIGHT / 4;
+    
+    // Check if projectile is within hotel bounds
+    if (gameState.projectile.x >= hotelX && 
+        gameState.projectile.x <= hotelX + HOTEL_WIDTH &&
+        gameState.projectile.y >= hotelY && 
+        gameState.projectile.y <= hotelY + HOTEL_HEIGHT) {
+        
+        // Calculate which room was hit
+        const col = Math.floor((gameState.projectile.x - hotelX) / roomWidth);
+        const row = Math.floor((gameState.projectile.y - hotelY) / roomHeight);
+        const roomIndex = row * 5 + col;
+        
+        console.log("Hit room:", roomIndex, "Target room:", gameState.targetRoom);
+        
+        if (roomIndex >= 0 && roomIndex < HOTEL_ROOMS) {
+            if (roomIndex === gameState.targetRoom) {
+                // Target room hit!
+                console.log("TARGET ROOM HIT! Level up!");
+                
+                // Increment level and score
+                gameState.level += 1;
+                gameState.score += 100;
+                
+                // Update displays
+                levelDisplay.textContent = gameState.level;
+                scoreDisplay.textContent = gameState.score;
+                
+                // Create victory explosion
+                for (let i = 0; i < 50; i++) {
+                    gameState.particles.push(createParticle(
+                        gameState.projectile.x,
+                        gameState.projectile.y,
+                        'rgba(255, 255, 0, 0.7)',
+                        3 + Math.random() * 5,
+                        (Math.random() - 0.5) * 8,
+                        (Math.random() - 0.5) * 8,
+                        50 + Math.random() * 30
+                    ));
+                }
+                
+                // Show success message
+                messageBox.style.zIndex = '1000';
+                messageBox.style.position = 'absolute';
+                messageBox.style.top = '50%';
+                messageBox.style.left = '50%';
+                messageBox.style.transform = 'translate(-50%, -50%)';
+                messageBox.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+                messageBox.style.color = '#fff';
+                messageBox.style.padding = '20px';
+                messageBox.style.borderRadius = '10px';
+                messageBox.style.fontSize = '24px';
+                messageBox.textContent = `Level ${gameState.level}! Target eliminated! Find the next target!`;
+                messageBox.style.display = 'block';
+                
+                setTimeout(() => {
+                    messageBox.style.display = 'none';
+                }, 2000);
+                
+                // Reset hotel and select new target
+                gameState.hotelDamage = new Array(HOTEL_ROOMS).fill(false);
+                gameState.targetRoom = Math.floor(Math.random() * HOTEL_ROOMS);
+                
+                // Update target display
+                const newRow = Math.floor(gameState.targetRoom / 5) + 1;
+                const newCol = (gameState.targetRoom % 5) + 1;
+                targetDisplay.textContent = `Target: Room ${newRow}-${newCol}`;
+            } else {
+                // Hit a non-target room
+                gameState.hotelDamage[roomIndex] = true;
+                
+                // Create explosion
+                for (let i = 0; i < 30; i++) {
+                    gameState.particles.push(createParticle(
+                        gameState.projectile.x,
+                        gameState.projectile.y,
+                        'rgba(255, 100, 100, 0.7)',
+                        3 + Math.random() * 3,
+                        (Math.random() - 0.5) * 5,
+                        (Math.random() - 0.5) * 5,
+                        30 + Math.random() * 20
+                    ));
+                }
+            }
+            
+            // Reset projectile state
+            gameState.projectile = null;
+            gameState.inProgress = false;
+            gameState.canFire = true;
+            return;
+        }
     }
     
     // Check if projectile is out of bounds
     if (gameState.projectile.x > canvas.width || 
         gameState.projectile.x < 0 || 
         gameState.projectile.y > canvas.height) {
-        handleMiss();
+        gameState.projectile = null;
+        gameState.inProgress = false;
+        gameState.canFire = true;
     }
 }
 
