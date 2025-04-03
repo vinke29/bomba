@@ -2,10 +2,28 @@
 // Game constants
 const GRAVITY = 0.5;
 const CANNON_LENGTH = 50;
-const HOTEL_WIDTH = 300;
-const HOTEL_HEIGHT = 400;
-const HOTEL_ROOMS = 20; // 4 rows, 5 columns
+const BASE_HOTEL_WIDTH = 300;
+const BASE_HOTEL_HEIGHT = 400;
+const BASE_HOTEL_ROOMS = 20; // 4 rows, 5 columns
 const HILL_HEIGHT = 100;
+
+// Level-specific obstacles
+const OBSTACLES = {
+    static: {
+        x: 400,
+        y: 200,
+        width: 40,
+        height: 150
+    },
+    moving: {
+        x: 350,
+        y: 200,
+        width: 50,
+        height: 50,
+        direction: 1,
+        speed: 2
+    }
+};
 
 // Game state
 let gameState = {
@@ -16,29 +34,37 @@ let gameState = {
     projectile: null,
     particles: [],
     enemyProjectiles: [],
-    targetRoom: Math.floor(Math.random() * HOTEL_ROOMS),
-    hotelDamage: new Array(HOTEL_ROOMS).fill(false),
+    targetRoom: Math.floor(Math.random() * BASE_HOTEL_ROOMS),
+    hotelDamage: new Array(BASE_HOTEL_ROOMS).fill(false),
     wind: 0,
-    attempts: 5 // Add attempts counter
+    attempts: 5
 };
 
 // DOM Elements
-const canvas = document.getElementById('game-canvas');
-const ctx = canvas.getContext('2d');
-const angleSlider = document.getElementById('angle');
-const powerSlider = document.getElementById('power');
-const angleValue = document.getElementById('angle-value');
-const powerValue = document.getElementById('power-value');
-const fireButton = document.getElementById('fire-button');
-const levelDisplay = document.getElementById('level');
-const targetDisplay = document.getElementById('target-description');
-const messageBox = document.getElementById('message-box');
-const scoreDisplay = document.getElementById('score');
-const attemptsDisplay = document.getElementById('attempts');
+let canvas, ctx, angleSlider, powerSlider, angleValue, powerValue, fireButton, levelDisplay, targetDisplay, messageBox, scoreDisplay, attemptsDisplay;
 
 // Initialize the game
 function init() {
     console.log("Game initializing...");
+    
+    // Initialize DOM elements
+    canvas = document.getElementById('game-canvas');
+    ctx = canvas.getContext('2d');
+    angleSlider = document.getElementById('angle');
+    powerSlider = document.getElementById('power');
+    angleValue = document.getElementById('angle-value');
+    powerValue = document.getElementById('power-value');
+    fireButton = document.getElementById('fire-button');
+    levelDisplay = document.getElementById('level');
+    targetDisplay = document.getElementById('target-description');
+    messageBox = document.getElementById('message-box');
+    scoreDisplay = document.getElementById('score');
+    attemptsDisplay = document.getElementById('attempts');
+    
+    if (!canvas || !ctx) {
+        console.error("Canvas or context not initialized!");
+        return;
+    }
     
     // Reset game state
     resetGameState();
@@ -69,6 +95,9 @@ function init() {
     
     // Initialize wind
     updateWind();
+    
+    // Draw initial scene
+    drawScene();
     
     // Start the game loop
     requestAnimationFrame(gameLoop);
@@ -189,64 +218,65 @@ function drawProjectile() {
     ctx.fill();
 }
 
-// Draw the hill
+// Draw the hill based on level
 function drawHill() {
-    ctx.fillStyle = '#654321';
-    ctx.beginPath();
-    ctx.moveTo(0, canvas.height);
-    ctx.lineTo(0, canvas.height - HILL_HEIGHT);
-    ctx.quadraticCurveTo(100, canvas.height - HILL_HEIGHT - 20, 200, canvas.height - HILL_HEIGHT / 2);
-    ctx.lineTo(200, canvas.height);
-    ctx.fill();
+    if (gameState.level >= 3) {
+        ctx.fillStyle = '#654321';
+        ctx.beginPath();
+        ctx.moveTo(0, canvas.height);
+        ctx.lineTo(0, canvas.height - HILL_HEIGHT);
+        ctx.quadraticCurveTo(100, canvas.height - HILL_HEIGHT - 50, 200, canvas.height - HILL_HEIGHT / 2);
+        ctx.quadraticCurveTo(300, canvas.height - HILL_HEIGHT + 30, 400, canvas.height - HILL_HEIGHT * 0.7);
+        ctx.lineTo(400, canvas.height);
+        ctx.fill();
+    }
 }
 
-// Draw the evil businessman
-function drawEvilBusinessman(x, y, width, height) {
-    // Draw suit
-    ctx.fillStyle = '#000000';
-    ctx.fillRect(x + width * 0.2, y + height * 0.3, width * 0.6, height * 0.6);
+// Draw obstacles based on level
+function drawObstacles() {
+    if (gameState.level >= 5) {
+        // Static obstacle
+        ctx.fillStyle = '#555';
+        ctx.fillRect(
+            OBSTACLES.static.x,
+            OBSTACLES.static.y,
+            OBSTACLES.static.width,
+            OBSTACLES.static.height
+        );
+    }
     
-    // Draw tie
-    ctx.fillStyle = '#FF0000';
-    ctx.beginPath();
-    ctx.moveTo(x + width * 0.4, y + height * 0.3);
-    ctx.lineTo(x + width * 0.5, y + height * 0.5);
-    ctx.lineTo(x + width * 0.6, y + height * 0.3);
-    ctx.fill();
-    
-    // Draw head
-    ctx.fillStyle = '#FFE4C4';
-    ctx.beginPath();
-    ctx.arc(x + width * 0.5, y + height * 0.2, width * 0.15, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // Draw evil smile
-    ctx.strokeStyle = '#000000';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(x + width * 0.5, y + height * 0.2, width * 0.1, 0, Math.PI);
-    ctx.stroke();
-    
-    // Draw evil eyes
-    ctx.fillStyle = '#FF0000';
-    ctx.beginPath();
-    ctx.arc(x + width * 0.4, y + height * 0.15, width * 0.03, 0, Math.PI * 2);
-    ctx.arc(x + width * 0.6, y + height * 0.15, width * 0.03, 0, Math.PI * 2);
-    ctx.fill();
+    if (gameState.level >= 6) {
+        // Moving obstacle
+        ctx.fillStyle = '#777';
+        OBSTACLES.moving.y += OBSTACLES.moving.direction * OBSTACLES.moving.speed;
+        
+        // Bounce the obstacle when it hits boundaries
+        if (OBSTACLES.moving.y > canvas.height - 100 || OBSTACLES.moving.y < 100) {
+            OBSTACLES.moving.direction *= -1;
+        }
+        
+        ctx.fillRect(
+            OBSTACLES.moving.x,
+            OBSTACLES.moving.y,
+            OBSTACLES.moving.width,
+            OBSTACLES.moving.height
+        );
+    }
 }
 
 // Draw the hotel
 function drawHotel() {
-    const hotelX = canvas.width - HOTEL_WIDTH - 50;
-    const hotelY = canvas.height - HOTEL_HEIGHT - 20;
+    const { width: hotelWidth, height: hotelHeight } = getHotelDimensions();
+    const hotelX = canvas.width - hotelWidth - 50;
+    const hotelY = canvas.height - hotelHeight - 20;
     
     // Draw main building
     ctx.fillStyle = '#D3D3D3';
-    ctx.fillRect(hotelX, hotelY, HOTEL_WIDTH, HOTEL_HEIGHT);
+    ctx.fillRect(hotelX, hotelY, hotelWidth, hotelHeight);
     
     // Draw rooms
-    const roomWidth = HOTEL_WIDTH / 5;
-    const roomHeight = HOTEL_HEIGHT / 4;
+    const roomWidth = hotelWidth / 5;
+    const roomHeight = hotelHeight / 4;
     
     for (let row = 0; row < 4; row++) {
         for (let col = 0; col < 5; col++) {
@@ -276,8 +306,8 @@ function drawHotel() {
 
 // Draw the ground
 function drawGround() {
-    ctx.fillStyle = '#228B22';
-    ctx.fillRect(0, canvas.height - 20, canvas.width, 20);
+    ctx.fillStyle = '#4CAF50';
+    ctx.fillRect(0, canvas.height - 50, canvas.width, 50);
 }
 
 // Draw the trajectory guide
@@ -313,11 +343,7 @@ function drawTrajectoryGuide() {
     ctx.stroke();
     
     // Draw wind indicator
-    if (gameState.wind !== 0) {
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-        ctx.font = '20px Arial';
-        ctx.fillText(`Wind: ${gameState.wind.toFixed(1)}`, 10, 30);
-    }
+    drawWind();
 }
 
 // Draw particles
@@ -379,6 +405,60 @@ function createFirework(x, y) {
     }
 }
 
+// Check collisions with obstacles and hotel
+function checkCollisions() {
+    if (!gameState.projectile) return false;
+    
+    // Check hotel collision first
+    if (checkHotelCollision()) {
+        return true;
+    }
+    
+    // Level 5: Check static obstacle collision
+    if (gameState.level >= 5) {
+        if (checkObstacleCollision(OBSTACLES.static)) {
+            handleMiss();
+            return true;
+        }
+    }
+    
+    // Level 6: Check moving obstacle collision
+    if (gameState.level >= 6) {
+        if (checkObstacleCollision(OBSTACLES.moving)) {
+            handleMiss();
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+// Update projectile physics
+function updateProjectile() {
+    if (!gameState.projectile || !gameState.inProgress) return;
+    
+    // Apply wind effect based on level
+    if (gameState.level >= 2) {
+        gameState.projectile.velocityX += gameState.wind;
+    }
+    
+    gameState.projectile.x += gameState.projectile.velocityX;
+    gameState.projectile.y += gameState.projectile.velocityY;
+    gameState.projectile.velocityY += GRAVITY;
+    
+    // Check for collisions
+    if (checkCollisions()) {
+        return;
+    }
+    
+    // Check if projectile is out of bounds
+    if (gameState.projectile.y > canvas.height || 
+        gameState.projectile.x < 0 || 
+        gameState.projectile.x > canvas.width) {
+        handleMiss();
+    }
+}
+
 // Handle a miss
 function handleMiss() {
     console.log("Handling miss");
@@ -410,217 +490,67 @@ function handleMiss() {
         return;
     }
     
-    // Only reset projectile state, keep hotel damage
+    // Reset for next shot
     gameState.inProgress = false;
     gameState.projectile = null;
     gameState.canFire = true;
 }
 
-// Handle a hit
-function handleHit() {
-    console.log("Target room hit!");
-    gameState.score += 100;
-    scoreDisplay.textContent = gameState.score;
-    
-    // Show victory message with animation
-    messageBox.textContent = "🎉 Hooray! Target Hit! 🎉";
-    messageBox.style.display = "block";
-    messageBox.style.fontSize = "24px";
-    messageBox.style.color = "#FFD700";
-    messageBox.style.textShadow = "2px 2px 4px rgba(0,0,0,0.5)";
-    
-    // Create fireworks
-    const hotelX = canvas.width - HOTEL_WIDTH - 50;
-    const hotelY = canvas.height - HOTEL_HEIGHT - 20;
-    const roomWidth = HOTEL_WIDTH / 5;
-    const roomHeight = HOTEL_HEIGHT / 4;
-    const targetCol = gameState.targetRoom % 5;
-    const targetRow = Math.floor(gameState.targetRoom / 5);
-    const targetX = hotelX + targetCol * roomWidth + roomWidth/2;
-    const targetY = hotelY + targetRow * roomHeight + roomHeight/2;
-    
-    // Create multiple fireworks
-    for (let i = 0; i < 5; i++) {
-        setTimeout(() => {
-            createFirework(targetX, targetY);
-        }, i * 200);
-    }
-    
-    // Increment level and update display immediately
-    gameState.level++;
-    levelDisplay.textContent = gameState.level;
-    console.log("Level increased to:", gameState.level);
-    
-    // Update wind for next level
-    updateWind();
-    
-    // Reset attempts for new level
-    gameState.attempts = 5;
-    console.log("Attempts reset to 5 for new level");
-    updateAttemptsDisplay();
-    
-    // Wait 2 seconds before transitioning to next level
-    setTimeout(() => {
-        // Reset hotel damage for next level
-        gameState.hotelDamage = new Array(HOTEL_ROOMS).fill(false);
-        gameState.targetRoom = Math.floor(Math.random() * HOTEL_ROOMS);
-        
-        // Ensure attempts are still 5
-        gameState.attempts = 5;
-        updateAttemptsDisplay();
-        
-        // Hide victory message
-        messageBox.style.display = "none";
-        messageBox.style.fontSize = "";
-        messageBox.style.color = "";
-        messageBox.style.textShadow = "";
-        
-        // Reset game state
-        gameState.inProgress = false;
-        gameState.projectile = null;
-        gameState.canFire = true;
-        
-        // Force a redraw of the scene
-        drawScene();
-    }, 2000);
-}
-
-// Check collision with hotel
-function checkHotelCollision() {
-    if (!gameState.projectile) return false;
-    
-    const hotelX = canvas.width - HOTEL_WIDTH - 50;
-    const hotelY = canvas.height - HOTEL_HEIGHT - 20;
-    const roomWidth = HOTEL_WIDTH / 5;
-    const roomHeight = HOTEL_HEIGHT / 4;
-    
-    // Check if projectile is within hotel bounds
-    if (gameState.projectile.x >= hotelX && 
-        gameState.projectile.x <= hotelX + HOTEL_WIDTH &&
-        gameState.projectile.y >= hotelY && 
-        gameState.projectile.y <= hotelY + HOTEL_HEIGHT) {
-        
-        // Calculate which room was hit
-        const col = Math.floor((gameState.projectile.x - hotelX) / roomWidth);
-        const row = Math.floor((gameState.projectile.y - hotelY) / roomHeight);
-        const roomIndex = row * 5 + col;
-        
-        if (roomIndex >= 0 && roomIndex < HOTEL_ROOMS && !gameState.hotelDamage[roomIndex]) {
-            // Mark room as damaged
-            gameState.hotelDamage[roomIndex] = true;
-            
-            // Create explosion particles
-            for (let i = 0; i < 30; i++) {
-                gameState.particles.push(createParticle(
-                    gameState.projectile.x,
-                    gameState.projectile.y,
-                    'rgba(255, 100, 100, 0.7)',
-                    3 + Math.random() * 3,
-                    (Math.random() - 0.5) * 5,
-                    (Math.random() - 0.5) * 5,
-                    30 + Math.random() * 20
-                ));
-            }
-            
-            // Check if target room was hit
-            if (roomIndex === gameState.targetRoom) {
-                handleHit();
-            } else {
-                handleMiss();
-            }
-            return true; // Collision occurred
-        }
-    }
-    return false; // No collision
-}
-
-// Update the projectile position
-function updateProjectile() {
-    if (!gameState.projectile) return;
-    
-    // Update position
-    gameState.projectile.x += gameState.projectile.velocityX;
-    gameState.projectile.y += gameState.projectile.velocityY;
-    
-    // Apply gravity and wind
-    gameState.projectile.velocityY += GRAVITY;
-    gameState.projectile.velocityX += gameState.wind;
-    
-    // Create trail effect
-    if (Math.random() > 0.7) {
-        gameState.particles.push(createParticle(
-            gameState.projectile.x,
-            gameState.projectile.y,
-            'rgba(255, 100, 100, 0.5)',
-            4 + Math.random() * 2,
-            (Math.random() - 0.5) * 2,
-            (Math.random() - 0.5) * 2,
-            20 + Math.random() * 10
-        ));
-    }
-    
-    // Check for collisions
-    if (checkHotelCollision()) {
-        return; // Stop updating if collision occurred
-    }
-    
-    // Check if projectile is out of bounds
-    if (gameState.projectile.x > canvas.width || 
-        gameState.projectile.x < 0 || 
-        gameState.projectile.y > canvas.height) {
-        handleMiss();
-    }
-}
-
 // Draw the entire scene
 function drawScene() {
-    // Clear the canvas
+    if (!ctx) return;
+    
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
     // Draw sky background
     ctx.fillStyle = '#87CEEB';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    // Draw elements
+    // Draw background elements first
     drawGround();
     drawHill();
-    drawHotel();
-    drawTrajectoryGuide();
-    drawCannon();
-    drawEnemyProjectiles();
-    drawParticles();
+    drawObstacles();
     
-    if (gameState.projectile) {
-        drawProjectile();
+    // Draw game elements
+    drawHotel();
+    drawCannon();
+    drawProjectile();
+    drawParticles();
+    drawEnemyProjectiles();
+    
+    // Draw UI elements
+    if (!gameState.inProgress) {
+        drawTrajectoryGuide();
     }
+    drawWind();
 }
 
-// Game loop
+// Main game loop
 function gameLoop() {
-    // Update projectiles
-    if (gameState.inProgress && gameState.projectile) {
-        updateProjectile();
-    }
-    updateEnemyProjectiles();
-    
-    // Update particles
-    updateParticles();
-    
-    // Draw everything
     drawScene();
     
-    // Continue the loop
+    // Update game state
+    if (gameState.inProgress) {
+        updateProjectile();
+    }
+    
+    updateParticles();
+    updateEnemyProjectiles();
+    
     requestAnimationFrame(gameLoop);
 }
 
-// Start the game when loaded
+// Initialize the game when the window loads
 window.addEventListener('load', init);
 
 // Add after the init function
 function updateWind() {
-    // Wind gets stronger with each level
-    const maxWind = Math.min(2, gameState.level * 0.5);
-    gameState.wind = (Math.random() - 0.5) * maxWind;
+    if (gameState.level >= 2) {
+        // Add random wind effect
+        gameState.wind = Math.sin(Date.now() / 1000) * 0.2;
+    } else {
+        gameState.wind = 0;
+    }
 }
 
 // Add new function to update attempts display
@@ -657,8 +587,8 @@ function gameOver() {
             projectile: null,
             particles: [],
             enemyProjectiles: [],
-            targetRoom: Math.floor(Math.random() * HOTEL_ROOMS),
-            hotelDamage: new Array(HOTEL_ROOMS).fill(false),
+            targetRoom: Math.floor(Math.random() * getHotelDimensions().rooms),
+            hotelDamage: new Array(getHotelDimensions().rooms).fill(false),
             wind: 0,
             attempts: 5 // Reset attempts for level 1
         };
@@ -677,4 +607,191 @@ function gameOver() {
         messageBox.style.color = "";
         messageBox.style.textShadow = "";
     }, 2000);
+}
+
+// Get level-specific hotel dimensions
+function getHotelDimensions() {
+    let width = BASE_HOTEL_WIDTH;
+    let height = BASE_HOTEL_HEIGHT;
+    let rooms = BASE_HOTEL_ROOMS;
+    
+    if (gameState.level >= 4) {
+        // Make hotel smaller from level 4 onwards
+        width *= 0.7;
+        height *= 0.7;
+    }
+    
+    return { width, height, rooms };
+}
+
+// Draw the evil businessman
+function drawEvilBusinessman(x, y, width, height) {
+    // Draw suit
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(x + width * 0.2, y + height * 0.3, width * 0.6, height * 0.6);
+    
+    // Draw tie
+    ctx.fillStyle = '#FF0000';
+    ctx.beginPath();
+    ctx.moveTo(x + width * 0.4, y + height * 0.3);
+    ctx.lineTo(x + width * 0.5, y + height * 0.5);
+    ctx.lineTo(x + width * 0.6, y + height * 0.3);
+    ctx.fill();
+    
+    // Draw head
+    ctx.fillStyle = '#FFE4C4';
+    ctx.beginPath();
+    ctx.arc(x + width * 0.5, y + height * 0.2, width * 0.15, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Draw evil smile
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(x + width * 0.5, y + height * 0.2, width * 0.1, 0, Math.PI);
+    ctx.stroke();
+    
+    // Draw evil eyes
+    ctx.fillStyle = '#FF0000';
+    ctx.beginPath();
+    ctx.arc(x + width * 0.4, y + height * 0.15, width * 0.03, 0, Math.PI * 2);
+    ctx.arc(x + width * 0.6, y + height * 0.15, width * 0.03, 0, Math.PI * 2);
+    ctx.fill();
+}
+
+// Check collision with hotel
+function checkHotelCollision() {
+    if (!gameState.projectile) return false;
+    
+    const { width: hotelWidth, height: hotelHeight } = getHotelDimensions();
+    const hotelX = canvas.width - hotelWidth - 50;
+    const hotelY = canvas.height - hotelHeight - 20;
+    
+    // Check if projectile is within hotel bounds
+    if (gameState.projectile.x >= hotelX && 
+        gameState.projectile.x <= hotelX + hotelWidth &&
+        gameState.projectile.y >= hotelY && 
+        gameState.projectile.y <= hotelY + hotelHeight) {
+        
+        // Calculate which room was hit
+        const col = Math.floor((gameState.projectile.x - hotelX) / (hotelWidth / 5));
+        const row = Math.floor((gameState.projectile.y - hotelY) / (hotelHeight / 4));
+        const roomIndex = row * 5 + col;
+        
+        if (roomIndex >= 0 && roomIndex < getHotelDimensions().rooms && !gameState.hotelDamage[roomIndex]) {
+            // Mark room as damaged
+            gameState.hotelDamage[roomIndex] = true;
+            
+            // Create explosion particles
+            for (let i = 0; i < 30; i++) {
+                gameState.particles.push(createParticle(
+                    gameState.projectile.x,
+                    gameState.projectile.y,
+                    'rgba(255, 100, 100, 0.7)',
+                    3 + Math.random() * 3,
+                    (Math.random() - 0.5) * 5,
+                    (Math.random() - 0.5) * 5,
+                    30 + Math.random() * 20
+                ));
+            }
+            
+            // Check if target room was hit
+            if (roomIndex === gameState.targetRoom) {
+                handleHit();
+            } else {
+                handleMiss();
+            }
+            return true;
+        }
+    }
+    return false;
+}
+
+// Check collisions with obstacles and hotel
+function checkObstacleCollision(obstacle) {
+    return gameState.projectile.x > obstacle.x &&
+           gameState.projectile.x < obstacle.x + obstacle.width &&
+           gameState.projectile.y > obstacle.y &&
+           gameState.projectile.y < obstacle.y + obstacle.height;
+}
+
+// Handle a hit
+function handleHit() {
+    console.log("Target room hit!");
+    gameState.score += 100;
+    scoreDisplay.textContent = gameState.score;
+    
+    // Show victory message with animation
+    messageBox.textContent = "🎉 Hooray! Target Hit! 🎉";
+    messageBox.style.display = "block";
+    messageBox.style.fontSize = "24px";
+    messageBox.style.color = "#FFD700";
+    messageBox.style.textShadow = "2px 2px 4px rgba(0,0,0,0.5)";
+    
+    // Create fireworks
+    const hotelX = canvas.width - getHotelDimensions().width - 50;
+    const hotelY = canvas.height - getHotelDimensions().height - 20;
+    const roomWidth = getHotelDimensions().width / 5;
+    const roomHeight = getHotelDimensions().height / 4;
+    const targetCol = gameState.targetRoom % 5;
+    const targetRow = Math.floor(gameState.targetRoom / 5);
+    const targetX = hotelX + targetCol * roomWidth + roomWidth/2;
+    const targetY = hotelY + targetRow * roomHeight + roomHeight/2;
+    
+    // Create multiple fireworks
+    for (let i = 0; i < 5; i++) {
+        setTimeout(() => {
+            createFirework(targetX, targetY);
+        }, i * 200);
+    }
+    
+    // Increment level and update display immediately
+    gameState.level++;
+    levelDisplay.textContent = gameState.level;
+    console.log("Level increased to:", gameState.level);
+    
+    // Update wind for next level
+    updateWind();
+    
+    // Reset attempts for new level
+    gameState.attempts = 5;
+    console.log("Attempts reset to 5 for new level");
+    updateAttemptsDisplay();
+    
+    // Wait 2 seconds before transitioning to next level
+    setTimeout(() => {
+        // Reset hotel damage for next level
+        gameState.hotelDamage = new Array(getHotelDimensions().rooms).fill(false);
+        gameState.targetRoom = Math.floor(Math.random() * getHotelDimensions().rooms);
+        
+        // Ensure attempts are still 5
+        gameState.attempts = 5;
+        updateAttemptsDisplay();
+        
+        // Hide victory message
+        messageBox.style.display = "none";
+        messageBox.style.fontSize = "";
+        messageBox.style.color = "";
+        messageBox.style.textShadow = "";
+        
+        // Reset game state
+        gameState.inProgress = false;
+        gameState.projectile = null;
+        gameState.canFire = true;
+        
+        // Force a redraw of the scene
+        drawScene();
+    }, 2000);
+}
+
+// Draw wind indicator
+function drawWind() {
+    if (gameState.level >= 2 && gameState.wind !== 0) {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+        ctx.font = '16px Arial';
+        const windStrength = Math.abs(gameState.wind);
+        const windDirection = gameState.wind > 0 ? '→' : '←';
+        const arrows = ''.padStart(Math.ceil(windStrength * 10), windDirection);
+        ctx.fillText(`Wind: ${arrows}`, 10, 30);
+    }
 } 
