@@ -225,17 +225,21 @@ function drawHill() {
         ctx.beginPath();
         ctx.moveTo(0, canvas.height);
         ctx.lineTo(0, canvas.height - HILL_HEIGHT);
-        ctx.quadraticCurveTo(100, canvas.height - HILL_HEIGHT - 50, 200, canvas.height - HILL_HEIGHT / 2);
-        ctx.quadraticCurveTo(300, canvas.height - HILL_HEIGHT + 30, 400, canvas.height - HILL_HEIGHT * 0.7);
-        ctx.lineTo(400, canvas.height);
+        
+        // Create a more challenging hill shape
+        ctx.quadraticCurveTo(
+            150, canvas.height - HILL_HEIGHT - 50,
+            300, canvas.height - HILL_HEIGHT / 2
+        );
+        ctx.lineTo(300, canvas.height);
         ctx.fill();
     }
 }
 
 // Draw obstacles based on level
 function drawObstacles() {
+    // Level 5: Static obstacle
     if (gameState.level >= 5) {
-        // Static obstacle
         ctx.fillStyle = '#555';
         ctx.fillRect(
             OBSTACLES.static.x,
@@ -245,13 +249,15 @@ function drawObstacles() {
         );
     }
     
+    // Level 6: Moving obstacle
     if (gameState.level >= 6) {
-        // Moving obstacle
         ctx.fillStyle = '#777';
+        
+        // Update moving obstacle position
         OBSTACLES.moving.y += OBSTACLES.moving.direction * OBSTACLES.moving.speed;
         
-        // Bounce the obstacle when it hits boundaries
-        if (OBSTACLES.moving.y > canvas.height - 100 || OBSTACLES.moving.y < 100) {
+        // Bounce when hitting boundaries
+        if (OBSTACLES.moving.y > canvas.height - 150 || OBSTACLES.moving.y < 150) {
             OBSTACLES.moving.direction *= -1;
         }
         
@@ -543,11 +549,11 @@ function gameLoop() {
 // Initialize the game when the window loads
 window.addEventListener('load', init);
 
-// Add after the init function
+// Update wind effect based on level
 function updateWind() {
     if (gameState.level >= 2) {
         // Add random wind effect
-        gameState.wind = Math.sin(Date.now() / 1000) * 0.2;
+        gameState.wind = (Math.sin(Date.now() / 1000) * 0.2) + (Math.random() * 0.1 - 0.05);
     } else {
         gameState.wind = 0;
     }
@@ -617,8 +623,8 @@ function getHotelDimensions() {
     
     if (gameState.level >= 4) {
         // Make hotel smaller from level 4 onwards
-        width *= 0.7;
-        height *= 0.7;
+        width *= 0.8;
+        height *= 0.8;
     }
     
     return { width, height, rooms };
@@ -787,11 +793,11 @@ function handleHit() {
 // Draw wind indicator
 function drawWind() {
     if (gameState.level >= 2 && gameState.wind !== 0) {
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-        ctx.font = '16px Arial';
-        const windStrength = Math.abs(gameState.wind);
+        const windStrength = Math.abs(gameState.wind) * 50;
         const windDirection = gameState.wind > 0 ? '→' : '←';
-        const arrows = ''.padStart(Math.ceil(windStrength * 10), windDirection);
-        ctx.fillText(`Wind: ${arrows}`, 10, 30);
+        
+        ctx.fillStyle = 'rgba(100, 100, 100, 0.5)'; // More subtle gray color
+        ctx.font = '16px Arial';
+        ctx.fillText(`Wind ${windDirection.repeat(Math.ceil(windStrength))}`, 10, 25);
     }
 } 
